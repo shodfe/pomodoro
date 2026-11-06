@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>番茄收集计划 | 专注番茄钟</title>
+<style>
+  :root {
+    --color-primary: #ff4d4f;
+    --bg-page: #f7f8fa;
+    --bg-card: #ffffff;
+    --text-main: #1f2329;
+    --text-secondary: #6e7681;
+    --border-color: #e5e6eb;
+    --tomato-bg: #ffd6d6;
+    --tomato-fill: #ff4d4f;
+    --tomato-rest: #b8b8b8;
+    --leaf-color: #52c41a;
+  }
+
+  [data-theme="dark"] {
+    --bg-page: #17171a;
+    --bg-card: #232327;
+    --text-main: #f2f3f5;
+    --text-secondary: #a3a6ad;
+    --border-color: #36363b;
+    --tomato-bg: #4a2c2c;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: system-ui, sans-serif;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  .pomodoro-card {
+    width: 100%;
+    max-width: 440px;
+    background-color: var(--bg-card);
+    padding: 30px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+    transition: background-color 0.3s, border-color 0.3s;
+  }
+
+  .title {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .tip-line {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  /* 番茄主体容器 + 游戏动画 */
+  .tomato-wrap {
+    position: relative;
+    width: 220px;
+    height: 260px;
+    margin: 0 auto 16px;
+  }
+  .tomato-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    transition: transform 0.2s ease;
+  }
+  .tomato-svg:hover {
+    transform: scale(1.03);
+  }
+  /* 动画class */
+  .tomato-bounce {
+    animation: bounce 0.4s ease;
+  }
+  .tomato-win {
+    animation: winFlash 0.6s ease;
+  }
+  @keyframes bounce {
+    0%,100% {transform: scale(1);}
+    50% {transform: scale(1.08);}
+  }
+  @keyframes winFlash {
+    0% {transform: scale(1);}
+    50% {transform: scale(1.15); filter: brightness(1.4);}
+    100% {transform: scale(1);}
+  }
+
+  .tomato-body {
+    fill: var(--tomato-bg);
+    transition: fill 0.3s;
+  }
+  .tomato-progress {
+    fill: var(--tomato-fill);
+    transition: height 0.6s linear, y 0.6s linear, fill 0.3s;
+    transform-origin: bottom;
+  }
+  .tomato-leaf {
+    fill: var(--leaf-color);
+    transition: fill 0.3s;
+  }
+  .tomato-line {
+    stroke: rgba(0, 0, 0, 0.08);
+    stroke-width: 1;
+  }
+
+  .time-text {
+    position: absolute;
+    top: 55%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 44px;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    letter-spacing: 1px;
+    z-index: 2;
+  }
+  /* 获得番茄弹窗提示 */
+  .gain-toast {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--tomato-fill);
+    opacity: 0;
+    transition: all 0.5s;
+    pointer-events: none;
+  }
+  .gain-toast.show {
+    opacity: 1;
+    top: 0;
+  }
+
+  .stage-text {
+    font-size: 18px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .count-text {
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+
+  /* 番茄仓库：分组品种展示 */
+  .store-box {
+    border:1px dashed var(--border-color);
+    border-radius:12px;
+    padding:14px;
+    margin-bottom:20px;
+  }
+  .store-title {
+    font-size:14px;
+    color:var(--text-secondary);
+    margin-bottom:10px;
+  }
+  .tomato-group {
+    margin-bottom:10px;
+  }
+  .group-name {
+    font-size:13px;
+    color:var(--text-secondary);
+    text-align:left;
+    margin-bottom:4px;
+  }
+  .tomato-store-row {
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    justify-content:flex-start;
+    min-height:28px;
+  }
+  .mini-tomato {
+    width:24px;
+    height:24px;
+    border-radius:50%;
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  button {
+    padding: 10px 18px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    transition: 0.15s ease;
+  }
+  button:active {
+    transform: scale(0.96);
+  }
+  .btn-primary {
+    background-color: var(--color-primary);
+    color: white;
+  }
+  .btn-primary:hover {
+    opacity: 0.85;
+  }
+  .btn-default {
+    background-color: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+  }
+  .btn-default:hover {
+    background-color: var(--border-color);
+  }
+
+  /* 设置弹窗 */
+  .mask {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 99;
+  }
+  .mask.show {
+    display: flex;
+  }
+  .setting-panel {
+    width: 90%;
+    max-width: 380px;
+    background-color: var(--bg-card);
+    padding: 24px;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+  }
+  .setting-panel h3 {
+    margin-bottom: 16px;
+  }
+  .form-item {
+    margin-bottom: 16px;
+    text-align: left;
+  }
+  .form-item label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+  }
+  .form-item input {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-main);
+  }
+  .color-list {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .color-item {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .color-item.active {
+    border-color: var(--text-main);
+  }
+  .setting-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 24px;
+  }
+</style>
+</head>
+
+<body>
+  <div class="pomodoro-card">
+    <h1 class="title">番茄收集计划</h1>
+    <div class="tip-line">专注，收获属于你的番茄🍅</div>
+
+    <div class="tomato-wrap">
+      <div class="gain-toast" id="gainToast">✅ +1 番茄！</div>
+      <svg class="tomato-svg" id="mainTomatoSvg" viewBox="0 0 220 260">
+        <path class="tomato-leaf" d="M110 40 C 130 20, 160 25, 170 50 C 150 55, 130 50, 110 40 Z" />
+        <path class="tomato-leaf" d="M110 40 C 90 20, 60 25, 50 50 C 70 55, 90 50, 110 40 Z" />
+        <ellipse class="tomato-body" cx="110" cy="150" rx="90" ry="95" />
+        <clipPath id="tomatoClip">
+          <ellipse cx="110" cy="150" rx="90" ry="95" />
+        </clipPath>
+        <rect id="tomatoProgress" class="tomato-progress" x="20" y="55" width="180" height="190" clip-path="url(#tomatoClip)" />
+        <path class="tomato-line" d="M110 60 L110 240" />
+        <path class="tomato-line" d="M40 150 L180 150" />
+      </svg>
+      <div class="time-text" id="timeDisplay">25:00</div>
+    </div>
+
+    <div class="stage-text" id="stageText">专注时间</div>
+    <div class="count-text">总共收集番茄：<span id="pomoCount">0</span> 颗</div>
+
+    <!-- 番茄仓库，按品种分组 -->
+    <div class="store-box">
+      <div class="store-title">番茄仓库（按品种分类）</div>
+      <div id="tomatoStore"></div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-primary" id="startBtn">开始专注</button>
+      <button class="btn-default" id="pauseBtn">暂停</button>
+      <button class="btn-default" id="resetBtn">重置</button>
+      <button class="btn-default" id="skipBtn">跳过阶段</button>
+      <button class="btn-default" id="openSettingBtn">设置</button>
+    </div>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div class="mask" id="mask">
+    <div class="setting-panel">
+      <h3>设置面板</h3>
+      <div class="form-item">
+        <label>专注时长（分钟，1~60）</label>
+        <input type="number" id="focusInput" min="1" max="60" />
+      </div>
+      <div class="form-item">
+        <label>休息时长（分钟，1~60）</label>
+        <input type="number" id="restInput" min="1" max="60" />
+      </div>
+      <div class="form-item">
+        <label>主题模式</label>
+        <div class="btn-group">
+          <button class="btn-default" data-theme-val="light">浅色</button>
+          <button class="btn-default" data-theme-val="dark">深色</button>
+        </div>
+      </div>
+      <div class="form-item">
+        <label>当前番茄品种颜色（下一颗收获的番茄就是这个颜色）</label>
+        <div class="color-list" id="colorList">
+          <div class="color-item" data-color="#ff4d4f" style="background:#ff4d4f"></div>
+          <div class="color-item" data-color="#4096ff" style="background:#4096ff"></div>
+          <div class="color-item" data-color="#36cfa2" style="background:#36cfa2"></div>
+          <div class="color-item" data-color="#b078ff" style="background:#b078ff"></div>
+          <div class="color-item" data-color="#ffb340" style="background:#ffb340"></div>
+        </div>
+      </div>
+      <!-- 新增导出记录按钮 -->
+      <div class="form-item">
+        <label>数据管理</label>
+        <div class="btn-group">
+          <button class="btn-default" id="exportBtn">导出番茄记录 JSON</button>
+        </div>
+      </div>
+      <div class="setting-buttons">
+        <button class="btn-default" id="closeSettingBtn">取消</button>
+        <button class="btn-primary" id="saveSettingBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ========== Task2 本地存储函数 ==========
+  // 数据结构：tomatoList 数组，每一项 {color:颜色, getTime:时间戳}
+  function loadData() {
+    const defaultData = {
+      focusTime: 25,
+      restTime: 5,
+      theme: "light",
+      primaryColor: "#ff4d4f",
+      tomatoList: []
+    };
+    try {
+      const str = localStorage.getItem("pomoGameData");
+      if (!str) return defaultData;
+      const parsed = JSON.parse(str);
+      // 兼容旧版本数据：如果旧数据只有pomoCount，自动转换成数组
+      if(parsed.pomoCount && !parsed.tomatoList){
+        parsed.tomatoList = [];
+        for(let i=0; i < parsed.pomoCount; i++){
+          parsed.tomatoList.push({color: parsed.primaryColor, getTime: Date.now()});
+        }
+      }
+      return { ...defaultData, ...parsed };
+    } catch (err) {
+      console.log("读取本地数据出错", err);
+      return defaultData;
+    }
+  }
+  function saveData(data) {
+    try {
+      localStorage.setItem("pomoGameData", JSON.stringify(data));
+    } catch (err) {
+      console.log("保存失败", err);
+    }
+  }
+
+  // ========== 导出JSON文件函数【新增】 ==========
+  function exportTomatoJson(){
+    // 把番茄记录转成格式化的JSON字符串，方便阅读
+    const jsonText = JSON.stringify(config.tomatoList, null, 2);
+    // 包装成Blob文件对象
+    const blob = new Blob([jsonText], {type: "application/json"});
+    // 创建下载链接
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    // 文件名带上当前日期，例如 tomato_record_2026-11-04.json
+    const now = new Date();
+    const dateStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0") + "-" + String(now.getDate()).padStart(2,"0");
+    a.download = "tomato_record_" + dateStr + ".json";
+    // 模拟点击下载
+    a.click();
+    // 释放内存
+    URL.revokeObjectURL(url);
+  }
+
+  // ========== 全局变量 ==========
+  const config = loadData();
+  let isRunning = false;
+  let timerId = null;
+  let currentSeconds = config.focusTime * 60;
+  let isFocusStage = true;
+  const TOMATO_PROGRESS_HEIGHT = 190;
+  const TOMATO_PROGRESS_Y = 55;
+
+  // DOM
+  const timeDisplay = document.getElementById("timeDisplay");
+  const stageText = document.getElementById("stageText");
+  const pomoCountEl = document.getElementById("pomoCount");
+  const tomatoProgress = document.getElementById("tomatoProgress");
+  const mainTomatoSvg = document.getElementById("mainTomatoSvg");
+  const gainToast = document.getElementById("gainToast");
+  const tomatoStore = document.getElementById("tomatoStore");
+  const exportBtn = document.getElementById("exportBtn");
+
+  const mask = document.getElementById("mask");
+  const focusInput = document.getElementById("focusInput");
+  const restInput = document.getElementById("restInput");
+
+  // ========== 渲染仓库：按颜色分组 ==========
+  function renderStore() {
+    tomatoStore.innerHTML = "";
+    // 分组：key是颜色，value是这个颜色的番茄数组
+    const group = {};
+    for(let item of config.tomatoList){
+      if(!group[item.color]) group[item.color] = [];
+      group[item.color].push(item);
+    }
+    // 遍历每一个品种
+    for(let colorKey in group){
+      const groupDiv = document.createElement("div");
+      groupDiv.className = "tomato-group";
+
+      const nameLine = document.createElement("div");
+      nameLine.className = "group-name";
+      nameLine.innerText = `品种 ${colorKey} × ${group[colorKey].length}`;
+      groupDiv.appendChild(nameLine);
+
+      const row = document.createElement("div");
+      row.className = "tomato-store-row";
+      // 生成一排小番茄
+      for(let t of group[colorKey]){
+        const mini = document.createElement("div");
+        mini.className = "mini-tomato";
+        mini.style.background = t.color;
+        row.appendChild(mini);
+      }
+      groupDiv.appendChild(row);
+      tomatoStore.appendChild(groupDiv);
+    }
+    // 更新总数
+    pomoCountEl.innerText = config.tomatoList.length;
+  }
+
+  // ========== 应用主题、颜色 ==========
+  function applyTheme() {
+    document.documentElement.setAttribute("data-theme", config.theme);
+    document.documentElement.style.setProperty("--color-primary", config.primaryColor);
+    document.documentElement.style.setProperty("--tomato-fill", config.primaryColor);
+    renderStore();
+  }
+
+  // ========== 时间格式化 ==========
+  function formatTime(sec) {
+    const m = String(Math.floor(sec / 60)).padStart(2, "0");
+    const s = String(sec % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  }
+
+  // ========== 更新番茄进度 ==========
+  function renderTomatoProgress() {
+    const total = isFocusStage ? config.focusTime * 60 : config.restTime * 60;
+    const percent = Math.max(0, Math.min(1, currentSeconds / total));
+    tomatoProgress.setAttribute("height", TOMATO_PROGRESS_HEIGHT * percent);
+    tomatoProgress.setAttribute("y", TOMATO_PROGRESS_Y + TOMATO_PROGRESS_HEIGHT * (1 - percent));
+    timeDisplay.innerText = formatTime(currentSeconds);
+
+    // 休息阶段：番茄进度变灰
+    if(!isFocusStage){
+      tomatoProgress.setAttribute("fill", "var(--tomato-rest)");
+    }else{
+      tomatoProgress.setAttribute("fill", config.primaryColor);
+    }
+  }
+
+  function renderInfo() {
+    stageText.innerText = isFocusStage ? "专注时间" : "休息放松";
+    renderTomatoProgress();
+    renderStore();
+  }
+
+  // 弹出获得番茄提示
+  function showGainToast(){
+    gainToast.classList.add("show");
+    mainTomatoSvg.classList.add("tomato-win");
+    setTimeout(()=>{
+      gainToast.classList.remove("show");
+      mainTomatoSvg.classList.remove("tomato-win");
+    }, 800)
+  }
+
+  // 开始弹跳动画
+  function tomatoBounceAnim(){
+    mainTomatoSvg.classList.add("tomato-bounce");
+    setTimeout(()=>{
+      mainTomatoSvg.classList.remove("tomato-bounce");
+    },400)
+  }
+
+  // ========== 提示音 ==========
+  function playAlert() {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.value = 0.2;
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.4);
+  }
+
+  // ========== 计时核心 ==========
+  function startTimer() {
+    if (isRunning) return;
+    isRunning = true;
+    tomatoBounceAnim();
+    timerId = setInterval(() => {
+      currentSeconds--;
+      renderTomatoProgress();
+      if (currentSeconds <= 0) {
+        clearInterval(timerId);
+        isRunning = false;
+        playAlert();
+        if (isFocusStage) {
+          // 收获一颗：颜色=当前选中的primaryColor
+          config.tomatoList.push({
+            color: config.primaryColor,
+            getTime: Date.now()
+          });
+          saveData(config);
+          showGainToast();
+        }
+        switchStage();
+      }
+    }, 1000);
+  }
+  function pauseTimer() {
+    clearInterval(timerId);
+    isRunning = false;
+  }
+  function resetTimer() {
+    pauseTimer();
+    currentSeconds = isFocusStage ? config.focusTime * 60 : config.restTime * 60;
+    renderTomatoProgress();
+  }
+  function skipStage() {
+    pauseTimer();
+    switchStage();
+  }
+  function switchStage() {
+    isFocusStage = !isFocusStage;
+    currentSeconds = isFocusStage ? config.focusTime * 60 : config.restTime * 60;
+    renderInfo();
+  }
+
+  // ========== 设置弹窗 ==========
+  function openSetting() {
+    focusInput.value = config.focusTime;
+    restInput.value = config.restTime;
+    document.querySelectorAll(".color-item").forEach(item => {
+      item.classList.toggle("active", item.dataset.color === config.primaryColor);
+    });
+    mask.classList.add("show");
+  }
+  function closeSetting() {
+    mask.classList.remove("show");
+  }
+  function saveSetting() {
+    const f = Number(focusInput.value);
+    const r = Number(restInput.value);
+    if (isNaN(f) || f < 1 || f > 60 || isNaN(r) || r < 1 || r > 60) {
+      alert("时长必须是 1~60 之间的数字");
+      return;
+    }
+    config.focusTime = f;
+    config.restTime = r;
+    saveData(config);
+    applyTheme();
+    resetTimer();
+    closeSetting();
+  }
+
+  // ========== 绑定事件 ==========
+  document.getElementById("startBtn").onclick = startTimer;
+  document.getElementById("pauseBtn").onclick = pauseTimer;
+  document.getElementById("resetBtn").onclick = resetTimer;
+  document.getElementById("skipBtn").onclick = skipStage;
+  document.getElementById("openSettingBtn").onclick = openSetting;
+  document.getElementById("closeSettingBtn").onclick = closeSetting;
+  document.getElementById("saveSettingBtn").onclick = saveSetting;
+  exportBtn.onclick = exportTomatoJson;
+
+  // 深浅主题切换
+  document.querySelectorAll("[data-theme-val]").forEach(btn => {
+    btn.onclick = () => {
+      config.theme = btn.dataset.themeVal;
+      applyTheme();
+      saveData(config);
+    };
+  });
+  // 番茄换色：修改【下一颗】的品种
+  document.querySelectorAll(".color-item").forEach(item => {
+    item.onclick = () => {
+      document.querySelectorAll(".color-item").forEach(i => i.classList.remove("active"));
+      item.classList.add("active");
+      config.primaryColor = item.dataset.color;
+      applyTheme();
+      saveData(config);
+    };
+  });
+
+  // ========== 初始化 ==========
+  applyTheme();
+  renderInfo();
+</script>
+</body>
+</html>
